@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>管理员中心</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="logo">
+        <div class="logo-badge">管</div>
+        管理员中心
+      </div>
+      <nav class="nav-links">
+        <a href="/index.html">首页</a>
+        <a href="/stats.html">学习统计</a>
+        <a href="/admin.html">管理</a>
+      </nav>
+    </header>
+
+    <section class="section" id="login-section">
+      <div class="card">
+        <h2 class="section-title">管理员登录</h2>
+        <p class="notice">输入管理员用户名即可登录。</p>
+        <input class="input" id="admin-username" placeholder="默认：admin" />
+        <div style="margin-top:12px;">
+          <button class="primary-btn" id="login-btn">登录</button>
+        </div>
+        <div id="login-status" class="empty">请输入用户名</div>
+      </div>
+    </section>
+
+    <section class="section" id="admin-section" style="display:none;">
+      <div class="admin-grid">
+        <div class="card">
+          <h3 class="section-title" style="margin-top:0;">视频来源</h3>
+          <select class="input" id="source-type">
+            <option value="baidu">百度网盘</option>
+            <option value="windows">Windows 文件夹</option>
+          </select>
+          <p class="notice">切换来源后请保存配置并重新同步。</p>
+        </div>
+        <div class="card" id="baidu-card">
+          <h3 class="section-title" style="margin-top:0;">百度授权</h3>
+          <p class="notice">点击按钮后完成百度 OAuth 授权。</p>
+          <button class="primary-btn" id="oauth-btn">开始授权</button>
+        </div>
+        <div class="card" id="baidu-root-card">
+          <h3 class="section-title" style="margin-top:0;">百度根目录</h3>
+          <input class="input" id="root-path" placeholder="/学习" />
+          <div style="margin-top:12px;">
+            <button class="secondary-btn" id="save-root">保存</button>
+          </div>
+        </div>
+        <div class="card" id="windows-card">
+          <h3 class="section-title" style="margin-top:0;">Windows 来源设置</h3>
+          <input class="input" id="win-base-url" placeholder="http://127.0.0.1:19080" />
+          <div style="margin-top:8px;">
+            <input class="input" id="win-root-path" placeholder="/(可选子目录)" />
+          </div>
+          <div style="margin-top:8px;">
+            <input class="input" id="win-token" placeholder="可选：访问口令" />
+          </div>
+          <p class="notice" style="margin-top:8px;">无公网 IP 时，可用反向隧道把 Windows 服务映射到服务器本机端口。</p>
+          <div style="margin-top:12px;">
+            <button class="secondary-btn" id="save-win">保存</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="section-title" style="margin-top:0;">手动同步</h3>
+          <p class="notice">从当前来源读取目录并同步分类与视频。</p>
+          <button class="primary-btn" id="sync-btn">立即同步</button>
+          <div id="sync-result" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+        <div class="card">
+          <h3 class="section-title" style="margin-top:0;">数据导出与清空</h3>
+          <button class="secondary-btn" id="export-btn">导出数据</button>
+          <button class="secondary-btn" id="clear-btn" style="margin-left:8px;">清空进度</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="logs-section" style="display:none;">
+      <div class="card">
+        <h3 class="section-title" style="margin-top:0;">操作日志</h3>
+        <div id="log-list" class="log-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>

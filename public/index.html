@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>快乐学习乐园</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="logo">
+        <div class="logo-badge">小</div>
+        快乐学习乐园
+      </div>
+      <nav class="nav-links">
+        <a href="/index.html">首页</a>
+        <a href="/stats.html">学习统计</a>
+        <a href="/admin.html">管理</a>
+      </nav>
+    </header>
+
+    <section class="section">
+      <div class="card">
+        <h2 class="section-title">今天学得怎么样？</h2>
+        <div class="stat-row">
+          <span>今日学习时长</span>
+          <strong id="today-time">0 分钟</strong>
+        </div>
+        <div class="stat-row">
+          <span>连续学习天数</span>
+          <strong id="streak-days">0 天</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">精选分类</h2>
+      <div id="category-grid" class="grid categories"></div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">最近观看</h2>
+      <div id="recent-grid" class="grid videos"></div>
+    </section>
+  </div>
+
+  <script type="module" src="/js/index.js"></script>
+</body>
+</html>

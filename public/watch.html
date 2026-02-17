@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>播放</title>
+  <link rel="stylesheet" href="/css/main.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="logo">
+        <div class="logo-badge">看</div>
+        <span id="video-title">播放</span>
+      </div>
+      <nav class="nav-links">
+        <a href="/index.html">首页</a>
+        <a href="/stats.html">学习统计</a>
+        <a href="/admin.html">管理</a>
+      </nav>
+    </header>
+
+    <section class="section">
+      <div class="video-player">
+        <video id="video-player" controls playsinline></video>
+        <div class="player-actions">
+          <div>
+            <span id="progress-text">进度 0%</span>
+            <span id="completed-badge" class="completed-badge" style="display:none;">已完成</span>
+          </div>
+          <button class="fullscreen-btn" id="fullscreen-btn">全屏播放</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card">
+        <h3 class="section-title" style="margin-top:0;">下一集</h3>
+        <div id="next-video" class="empty">加载中...</div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="/js/watch.js"></script>
+</body>
+</html>

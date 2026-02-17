@@ -39,6 +39,7 @@
           <select class="input" id="source-type">
             <option value="baidu">百度网盘</option>
             <option value="windows">Windows 文件夹</option>
+            <option value="local">本地目录</option>
           </select>
           <p class="notice">切换来源后请保存配置并重新同步。</p>
         </div>
@@ -66,6 +67,14 @@
           <p class="notice" style="margin-top:8px;">无公网 IP 时，可用反向隧道把 Windows 服务映射到服务器本机端口。</p>
           <div style="margin-top:12px;">
             <button class="secondary-btn" id="save-win">保存</button>
+          </div>
+        </div>
+        <div class="card" id="local-card">
+          <h3 class="section-title" style="margin-top:0;">本地目录设置</h3>
+          <p class="notice">仅允许访问服务器上的 <code>/opt/kidvideo</code> 目录。</p>
+          <input class="input" id="local-root-path" placeholder="/(可选子目录)" />
+          <div style="margin-top:12px;">
+            <button class="secondary-btn" id="save-local">保存</button>
           </div>
         </div>
         <div class="card">

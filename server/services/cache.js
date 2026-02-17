@@ -13,6 +13,7 @@ const {
 } = require('../db/database');
 const { getDlink } = require('./baidu');
 const windows = require('./windows');
+const local = require('./local');
 
 const DEFAULT_MAX_GB = 8;
 const MAX_CACHE_BYTES = Number(process.env.CACHE_MAX_BYTES) || (Number(process.env.CACHE_MAX_GB) || DEFAULT_MAX_GB) * 1024 * 1024 * 1024;
@@ -96,7 +97,17 @@ function evictIfNeeded(requiredBytes) {
 
 async function downloadToCache(video) {
   if (!video || !video.id) return;
-  const sizeBytes = Number(video.size_bytes || 0);
+  let sizeBytes = Number(video.size_bytes || 0);
+  if (video.source_type === 'local' && (!sizeBytes || sizeBytes <= 0)) {
+    try {
+      const filePath = local.getFilePath(video.source_path);
+      const stat = fs.statSync(filePath);
+      sizeBytes = stat.size || 0;
+    } catch (err) {
+      logEvent('cache', `Skip cache video ${video.id}: ${err.message}`);
+      return;
+    }
+  }
   if (!sizeBytes || sizeBytes <= 0) return;
   if (sizeBytes > MAX_CACHE_BYTES) return;
 
@@ -121,31 +132,43 @@ async function downloadToCache(video) {
   logEvent('cache', `Start caching video ${video.id}`);
 
   let response;
-  if (video.source_type === 'windows') {
-    response = await windows.getFileStream(video.source_path);
+  if (video.source_type === 'local') {
+    const filePath = local.getFilePath(video.source_path);
+    await new Promise((resolve, reject) => {
+      const reader = fs.createReadStream(filePath);
+      const writer = fs.createWriteStream(tempPath);
+      reader.pipe(writer);
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+      reader.on('error', reject);
+    });
   } else {
-    const dlink = await getDlink(video.baidu_file_id);
-    response = await axios.get(dlink, {
-      responseType: 'stream',
-      headers: {
-        'User-Agent': 'netdisk',
-        Referer: 'https://pan.baidu.com/',
-        Origin: 'https://pan.baidu.com'
-      },
-      maxRedirects: 5,
-      timeout: 0,
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity
+    if (video.source_type === 'windows') {
+      response = await windows.getFileStream(video.source_path);
+    } else {
+      const dlink = await getDlink(video.baidu_file_id);
+      response = await axios.get(dlink, {
+        responseType: 'stream',
+        headers: {
+          'User-Agent': 'netdisk',
+          Referer: 'https://pan.baidu.com/',
+          Origin: 'https://pan.baidu.com'
+        },
+        maxRedirects: 5,
+        timeout: 0,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+      });
+    }
+
+    await new Promise((resolve, reject) => {
+      const writer = fs.createWriteStream(tempPath);
+      response.data.pipe(writer);
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+      response.data.on('error', reject);
     });
   }
-
-  await new Promise((resolve, reject) => {
-    const writer = fs.createWriteStream(tempPath);
-    response.data.pipe(writer);
-    writer.on('finish', resolve);
-    writer.on('error', reject);
-    response.data.on('error', reject);
-  });
 
   fs.renameSync(tempPath, targetPath);
   markCacheCompleted(video.id, sizeBytes, targetPath);

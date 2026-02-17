@@ -17,6 +17,9 @@ const saveWinBtn = document.getElementById('save-win');
 const baiduCard = document.getElementById('baidu-card');
 const baiduRootCard = document.getElementById('baidu-root-card');
 const windowsCard = document.getElementById('windows-card');
+const localCard = document.getElementById('local-card');
+const localRootPathInput = document.getElementById('local-root-path');
+const saveLocalBtn = document.getElementById('save-local');
 const syncBtn = document.getElementById('sync-btn');
 const syncResult = document.getElementById('sync-result');
 const exportBtn = document.getElementById('export-btn');
@@ -56,21 +59,25 @@ async function loadConfig() {
     sourceType,
     winBaseUrl,
     winRootPath,
-    winToken
+    winToken,
+    localRootPath
   } = await getJSON('/api/admin/config');
   rootPathInput.value = rootPath || '/';
   sourceTypeSelect.value = sourceType || 'baidu';
   winBaseUrlInput.value = winBaseUrl || '';
   winRootPathInput.value = winRootPath || '/';
   winTokenInput.value = winToken || '';
+  localRootPathInput.value = localRootPath || '/';
   updateSourceUI(sourceType || 'baidu');
 }
 
 function updateSourceUI(sourceType) {
   const isWindows = sourceType === 'windows';
-  baiduCard.style.display = isWindows ? 'none' : 'block';
-  baiduRootCard.style.display = isWindows ? 'none' : 'block';
+  const isLocal = sourceType === 'local';
+  baiduCard.style.display = isWindows || isLocal ? 'none' : 'block';
+  baiduRootCard.style.display = isWindows || isLocal ? 'none' : 'block';
   windowsCard.style.display = isWindows ? 'block' : 'none';
+  localCard.style.display = isLocal ? 'block' : 'none';
 }
 
 async function saveConfig() {
@@ -79,7 +86,8 @@ async function saveConfig() {
     sourceType: sourceTypeSelect.value,
     winBaseUrl: winBaseUrlInput.value,
     winRootPath: winRootPathInput.value,
-    winToken: winTokenInput.value
+    winToken: winTokenInput.value,
+    localRootPath: localRootPathInput.value
   };
   await postJSON('/api/admin/config', payload);
   await loadLogs();
@@ -158,6 +166,15 @@ saveRootBtn.addEventListener('click', async () => {
 });
 
 saveWinBtn.addEventListener('click', async () => {
+  try {
+    await saveConfig();
+    alert('保存成功');
+  } catch (err) {
+    alert(`保存失败：${err.message}`);
+  }
+});
+
+saveLocalBtn.addEventListener('click', async () => {
   try {
     await saveConfig();
     alert('保存成功');

@@ -3,11 +3,13 @@ const {
   listCategories,
   listVideosByCategory,
   getVideo,
+  getCategory,
   updateProgress,
   addDailyWatchSeconds,
   getRecentVideos,
   getTopVideos,
-  getCategoryStats
+  getCategoryStats,
+  getConfig
 } = require('../db/database');
 const { getShanghaiDateString } = require('../utils/time');
 const { buildSummary } = require('../services/stats');
@@ -16,19 +18,26 @@ const { streamVideo } = require('../services/stream');
 const router = express.Router();
 
 router.get('/categories', (req, res) => {
-  const categories = listCategories();
+  const sourceType = getConfig('source_type') || 'baidu';
+  const categories = listCategories(sourceType);
   res.json({ categories });
 });
 
 router.get('/categories/:id/videos', (req, res) => {
   const categoryId = Number(req.params.id);
-  const videos = listVideosByCategory(categoryId);
+  const sourceType = getConfig('source_type') || 'baidu';
+  const category = getCategory(categoryId);
+  if (!category || category.source_type !== sourceType) {
+    return res.status(404).json({ error: 'NOT_FOUND' });
+  }
+  const videos = listVideosByCategory(categoryId, sourceType);
   res.json({ videos });
 });
 
 router.get('/videos/:id', (req, res) => {
   const videoId = Number(req.params.id);
-  const video = getVideo(videoId);
+  const sourceType = getConfig('source_type') || 'baidu';
+  const video = getVideo(videoId, sourceType);
   if (!video) {
     return res.status(404).json({ error: 'NOT_FOUND' });
   }
@@ -38,7 +47,8 @@ router.get('/videos/:id', (req, res) => {
 router.get('/stream/:id', async (req, res) => {
   try {
     const videoId = Number(req.params.id);
-    const video = getVideo(videoId);
+    const sourceType = getConfig('source_type') || 'baidu';
+    const video = getVideo(videoId, sourceType);
     if (!video) {
       return res.status(404).json({ error: 'NOT_FOUND' });
     }
@@ -63,7 +73,8 @@ router.post('/progress/heartbeat', (req, res) => {
     return res.status(400).json({ error: 'MISSING_VIDEO' });
   }
 
-  const existing = getVideo(Number(videoId));
+  const sourceType = getConfig('source_type') || 'baidu';
+  const existing = getVideo(Number(videoId), sourceType);
   if (!existing) {
     return res.status(404).json({ error: 'NOT_FOUND' });
   }
@@ -96,17 +107,20 @@ router.get('/stats/summary', (req, res) => {
 });
 
 router.get('/stats/by-category', (req, res) => {
-  const categories = getCategoryStats();
+  const sourceType = getConfig('source_type') || 'baidu';
+  const categories = getCategoryStats(sourceType);
   res.json({ categories });
 });
 
 router.get('/stats/top-videos', (req, res) => {
-  const videos = getTopVideos(6);
+  const sourceType = getConfig('source_type') || 'baidu';
+  const videos = getTopVideos(6, sourceType);
   res.json({ videos });
 });
 
 router.get('/recent', (req, res) => {
-  const videos = getRecentVideos(3);
+  const sourceType = getConfig('source_type') || 'baidu';
+  const videos = getRecentVideos(3, sourceType);
   res.json({ videos });
 });
 

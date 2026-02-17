@@ -137,11 +137,12 @@ function setConfigMany(values) {
 
 function upsertCategory({ name, baidu_file_id, source_type = null, source_path = null }) {
   let existing = null;
-  if (source_type && source_path) {
+  if (baidu_file_id) {
+    existing = db.prepare('SELECT id FROM categories WHERE baidu_file_id = ?').get(baidu_file_id);
+  }
+  if (!existing && source_type && source_path) {
     existing = db.prepare('SELECT id FROM categories WHERE source_type = ? AND source_path = ?')
       .get(source_type, source_path);
-  } else if (baidu_file_id) {
-    existing = db.prepare('SELECT id FROM categories WHERE baidu_file_id = ?').get(baidu_file_id);
   }
   const timestamp = now();
   if (existing) {
@@ -167,11 +168,12 @@ function upsertVideo({
   thumbnail_url
 }) {
   let existing = null;
-  if (source_type && source_path) {
+  if (baidu_file_id) {
+    existing = db.prepare('SELECT id FROM videos WHERE baidu_file_id = ?').get(baidu_file_id);
+  }
+  if (!existing && source_type && source_path) {
     existing = db.prepare('SELECT id FROM videos WHERE source_type = ? AND source_path = ?')
       .get(source_type, source_path);
-  } else if (baidu_file_id) {
-    existing = db.prepare('SELECT id FROM videos WHERE baidu_file_id = ?').get(baidu_file_id);
   }
   const timestamp = now();
   if (existing) {
@@ -224,7 +226,18 @@ function markDeletedVideos(categoryId, keepKeys, keyColumn = 'baidu_file_id') {
     .run(categoryId, ...keepKeys);
 }
 
-function listCategories() {
+function listCategories(sourceType = null) {
+  if (sourceType) {
+    return db.prepare(`
+      SELECT c.id, c.name, c.baidu_file_id,
+        COUNT(v.id) as video_count
+      FROM categories c
+      LEFT JOIN videos v ON v.category_id = c.id AND v.deleted = 0
+      WHERE c.source_type = ?
+      GROUP BY c.id
+      ORDER BY c.name COLLATE NOCASE
+    `).all(sourceType);
+  }
   return db.prepare(`
     SELECT c.id, c.name, c.baidu_file_id,
       COUNT(v.id) as video_count
@@ -248,8 +261,19 @@ function buildNumericOrderExpr(column) {
   END`;
 }
 
-function listVideosByCategory(categoryId) {
+function listVideosByCategory(categoryId, sourceType = null) {
   const sortExpr = buildNumericOrderExpr('v.title');
+  if (sourceType) {
+    return db.prepare(`
+      SELECT v.*, p.last_position_seconds, p.duration_seconds AS progress_duration_seconds,
+        p.progress_percent, p.completed, p.total_watch_seconds, p.last_watched_at
+      FROM videos v
+      JOIN categories c ON c.id = v.category_id
+      LEFT JOIN progress p ON p.video_id = v.id
+      WHERE v.category_id = ? AND v.deleted = 0 AND c.source_type = ?
+      ORDER BY ${sortExpr}, v.title COLLATE NOCASE
+    `).all(categoryId, sourceType);
+  }
   return db.prepare(`
     SELECT v.*, p.last_position_seconds, p.duration_seconds AS progress_duration_seconds,
       p.progress_percent, p.completed, p.total_watch_seconds, p.last_watched_at
@@ -260,7 +284,18 @@ function listVideosByCategory(categoryId) {
   `).all(categoryId);
 }
 
-function getVideo(id) {
+function getVideo(id, sourceType = null) {
+  if (sourceType) {
+    return db.prepare(`
+      SELECT v.*, c.name AS category_name, c.id AS category_id,
+        p.last_position_seconds, p.duration_seconds AS progress_duration_seconds,
+        p.progress_percent, p.completed, p.total_watch_seconds, p.last_watched_at
+      FROM videos v
+      JOIN categories c ON c.id = v.category_id
+      LEFT JOIN progress p ON p.video_id = v.id
+      WHERE v.id = ? AND v.source_type = ?
+    `).get(id, sourceType);
+  }
   return db.prepare(`
     SELECT v.*, c.name AS category_name, c.id AS category_id,
       p.last_position_seconds, p.duration_seconds AS progress_duration_seconds,
@@ -342,7 +377,19 @@ function getWatchSecondsForDate(date) {
   return row ? row.watch_seconds : 0;
 }
 
-function getRecentVideos(limit = 3) {
+function getRecentVideos(limit = 3, sourceType = null) {
+  if (sourceType) {
+    return db.prepare(`
+      SELECT v.id, v.title, v.thumbnail_url, v.category_id, c.name AS category_name,
+        p.last_watched_at, p.progress_percent
+      FROM progress p
+      JOIN videos v ON v.id = p.video_id
+      JOIN categories c ON c.id = v.category_id
+      WHERE v.deleted = 0 AND v.source_type = ?
+      ORDER BY p.last_watched_at DESC
+      LIMIT ?
+    `).all(sourceType, limit);
+  }
   return db.prepare(`
     SELECT v.id, v.title, v.thumbnail_url, v.category_id, c.name AS category_name,
       p.last_watched_at, p.progress_percent
@@ -355,7 +402,19 @@ function getRecentVideos(limit = 3) {
   `).all(limit);
 }
 
-function getTopVideos(limit = 6) {
+function getTopVideos(limit = 6, sourceType = null) {
+  if (sourceType) {
+    return db.prepare(`
+      SELECT v.id, v.title, v.thumbnail_url, v.category_id, c.name AS category_name,
+        p.total_watch_seconds
+      FROM progress p
+      JOIN videos v ON v.id = p.video_id
+      JOIN categories c ON c.id = v.category_id
+      WHERE v.deleted = 0 AND v.source_type = ?
+      ORDER BY p.total_watch_seconds DESC
+      LIMIT ?
+    `).all(sourceType, limit);
+  }
   return db.prepare(`
     SELECT v.id, v.title, v.thumbnail_url, v.category_id, c.name AS category_name,
       p.total_watch_seconds
@@ -368,7 +427,18 @@ function getTopVideos(limit = 6) {
   `).all(limit);
 }
 
-function getCategoryStats() {
+function getCategoryStats(sourceType = null) {
+  if (sourceType) {
+    return db.prepare(`
+      SELECT c.id, c.name, COALESCE(SUM(p.total_watch_seconds), 0) AS watch_seconds
+      FROM categories c
+      LEFT JOIN videos v ON v.category_id = c.id AND v.deleted = 0
+      LEFT JOIN progress p ON p.video_id = v.id
+      WHERE c.source_type = ?
+      GROUP BY c.id
+      ORDER BY watch_seconds DESC, c.name COLLATE NOCASE
+    `).all(sourceType);
+  }
   return db.prepare(`
     SELECT c.id, c.name, COALESCE(SUM(p.total_watch_seconds), 0) AS watch_seconds
     FROM categories c

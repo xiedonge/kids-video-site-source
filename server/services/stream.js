@@ -4,6 +4,7 @@ const axios = require('axios');
 const { getDlink } = require('./baidu');
 const { getCachedPath, queueDownload, prefetchNext } = require('./cache');
 const windows = require('./windows');
+const local = require('./local');
 
 function getContentTypeByExt(ext) {
   if (ext === '.mov') return 'video/quicktime';
@@ -56,6 +57,11 @@ async function streamVideo(req, res, video) {
 
   const range = req.headers.range || 'bytes=0-';
   let upstream;
+  if (video.source_type === 'local') {
+    const filePath = local.getFilePath(video.source_path);
+    streamLocalFile(req, res, filePath);
+    return;
+  }
   if (video.source_type === 'windows') {
     upstream = await windows.getFileStream(video.source_path, range);
   } else {

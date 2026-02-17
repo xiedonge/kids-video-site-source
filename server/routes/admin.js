@@ -15,6 +15,7 @@ const {
 const { requireAdmin } = require('../middleware/admin');
 const baidu = require('../services/baidu');
 const windows = require('../services/windows');
+const local = require('../services/local');
 
 const router = express.Router();
 
@@ -33,7 +34,8 @@ router.get('/config', requireAdmin, (req, res) => {
     'source_type',
     'win_base_url',
     'win_root_path',
-    'win_token'
+    'win_token',
+    'local_root_path'
   ]);
   const rootPath = config.root_path || '/';
   const scope = config.baidu_scope || null;
@@ -41,23 +43,26 @@ router.get('/config', requireAdmin, (req, res) => {
   const winBaseUrl = config.win_base_url || '';
   const winRootPath = config.win_root_path || '/';
   const winToken = config.win_token || '';
+  const localRootPath = config.local_root_path || '/';
   res.json({
     rootPath,
     scope,
     sourceType,
     winBaseUrl,
     winRootPath,
-    winToken
+    winToken,
+    localRootPath
   });
 });
 
 router.post('/config', requireAdmin, (req, res) => {
-  const { rootPath, sourceType, winBaseUrl, winRootPath, winToken } = req.body || {};
-  const nextSourceType = sourceType === 'windows' ? 'windows' : 'baidu';
+  const { rootPath, sourceType, winBaseUrl, winRootPath, winToken, localRootPath } = req.body || {};
+  const nextSourceType = sourceType === 'windows' ? 'windows' : (sourceType === 'local' ? 'local' : 'baidu');
   const trimmedRoot = typeof rootPath === 'string' ? rootPath.trim() : '';
   const trimmedWinBase = typeof winBaseUrl === 'string' ? winBaseUrl.trim() : '';
   const trimmedWinRoot = typeof winRootPath === 'string' ? winRootPath.trim() : '';
   const trimmedWinToken = typeof winToken === 'string' ? winToken.trim() : '';
+  const trimmedLocalRoot = typeof localRootPath === 'string' ? localRootPath.trim() : '';
 
   if (nextSourceType === 'baidu' && !trimmedRoot) {
     return res.status(400).json({ error: 'INVALID_ROOT' });
@@ -71,7 +76,8 @@ router.post('/config', requireAdmin, (req, res) => {
     source_type: nextSourceType,
     win_base_url: trimmedWinBase,
     win_root_path: trimmedWinRoot || '/',
-    win_token: trimmedWinToken
+    win_token: trimmedWinToken,
+    local_root_path: trimmedLocalRoot || '/'
   });
   logEvent('config', `Config updated (source=${nextSourceType})`);
   return res.json({ ok: true });
@@ -142,6 +148,42 @@ router.post('/sync', requireAdmin, async (req, res) => {
         markDeletedVideos(categoryId, keepPaths, 'source_path');
       }
       logEvent('sync', `Synced windows ${categoryCount} categories, ${videoCount} videos`);
+      return res.json({ ok: true, categories: categoryCount, videos: videoCount });
+    }
+    if (sourceType === 'local') {
+      const rootPath = getConfig('local_root_path') || '/';
+      const folders = await local.listFolder(rootPath);
+      const categoryFolders = folders.filter((item) => item.isDir);
+      categoryCount = categoryFolders.length;
+      for (const folder of categoryFolders) {
+        const categoryId = upsertCategory({
+          name: folder.name,
+          source_type: 'local',
+          source_path: folder.path
+        });
+        const files = await local.listFolder(folder.path);
+        const videos = files.filter((item) => {
+          if (item.isDir) return false;
+          const name = item.name.toLowerCase();
+          return name.endsWith('.mp4') || name.endsWith('.mov') || name.endsWith('.m4v');
+        });
+        const keepPaths = [];
+        for (const file of videos) {
+          keepPaths.push(file.path);
+          upsertVideo({
+            category_id: categoryId,
+            title: file.name,
+            source_type: 'local',
+            source_path: file.path,
+            size_bytes: file.size || 0,
+            duration_seconds: 0,
+            thumbnail_url: null
+          });
+          videoCount += 1;
+        }
+        markDeletedVideos(categoryId, keepPaths, 'source_path');
+      }
+      logEvent('sync', `Synced local ${categoryCount} categories, ${videoCount} videos`);
       return res.json({ ok: true, categories: categoryCount, videos: videoCount });
     }
 
